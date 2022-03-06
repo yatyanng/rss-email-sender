@@ -1,0 +1,19 @@
+app:
+  couchdb:
+    connect-timeout: 5
+    read-timeout: 5
+    connection-pool-size: 2
+    username: ""
+    password: ""
+    read-jsoup-url: ""
+    read-xalan-url: ""
+    update-jsoup-url: ""
+    update-xalan-url: ""
+  email:
+    from-address: ""
+    password: ""
+    to-address: ""
+spring:
+  main:
+    web-application-type: none
+    allow-circular-references: true
