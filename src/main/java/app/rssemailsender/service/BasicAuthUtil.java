@@ -2,6 +2,7 @@ package app.rssemailsender.service;
 
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Map;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
@@ -35,6 +36,17 @@ public class BasicAuthUtil {
     } catch (Exception e) {
       throw new RuntimeException("Failed to create a SSL socket factory", e);
     }
+  }
+  
+  @SuppressWarnings("serial")
+  public static HttpHeaders createHeaders(Map<String,String> httpHeaders) {
+    return new HttpHeaders() {
+      { 
+        httpHeaders.entrySet().stream().forEach(entry -> {
+          set(entry.getKey(), entry.getValue());
+        }); 
+      }
+    };
   }
   
   @SuppressWarnings("serial")

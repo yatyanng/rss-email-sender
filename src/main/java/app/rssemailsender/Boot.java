@@ -7,6 +7,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.ApplicationContext;
+import app.rssemailsender.service.JsonApiService;
 import app.rssemailsender.service.JsoupService;
 import app.rssemailsender.service.XalanService;
 
@@ -23,6 +24,9 @@ public class Boot {
 
   @Autowired
   private XalanService xalanService;
+
+  @Autowired
+  private JsonApiService jsonApiService;
 
   public static void main(String[] args) throws Exception {
     String configDirectory = "conf";
@@ -46,14 +50,19 @@ public class Boot {
 
     jsoupService.run();
     xalanService.run();
+    jsonApiService.run();
 
     if (!jsoupService.getErrorSet().isEmpty()) {
       log.error("jsoup service error: {}", jsoupService.getErrorSet());
-      rc++;
+      rc += Constants.CODE_JSOUP_SERVICE;
     }
     if (!xalanService.getErrorSet().isEmpty()) {
       log.error("xalan service error: {}", xalanService.getErrorSet());
-      rc += 2;
+      rc += Constants.CODE_XALAN_SERVICE;
+    }
+    if (!jsonApiService.getErrorSet().isEmpty()) {
+      log.error("jsonApi service error: {}", jsonApiService.getErrorSet());
+      rc += Constants.CODE_JSON_API_SERVICE;
     }
     log.info("{} {} has ended, rc={}", buildProperties.getArtifact(), buildProperties.getVersion(),
         rc);
