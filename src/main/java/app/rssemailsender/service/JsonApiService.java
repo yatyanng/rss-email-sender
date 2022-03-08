@@ -6,6 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -17,6 +18,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ReadContext;
 import app.rssemailsender.Constants;
 
 @Service
@@ -36,6 +39,10 @@ public class JsonApiService extends BaseService {
   @Autowired
   private EmailService emailService;
 
+  @Autowired
+  @Qualifier(Constants.BEAN_JSON_PATH_CONFIGURATION)
+  protected com.jayway.jsonpath.Configuration jsonPathConfiguration;
+
   @SuppressWarnings({"rawtypes", "unchecked"})
   protected void processRow(String id) {
     ResponseEntity<Map> subEntity = couchdbRestTemplate.exchange(getDataURL(), HttpMethod.GET,
@@ -49,6 +56,7 @@ public class JsonApiService extends BaseService {
       Map<String, String> httpParam =
           (Map<String, String>) subResponse.get(Constants.PARAM_HTTP_PARAM);
       processJsonApi(id, url, httpHeaders, httpParam,
+          (String) subResponse.get(Constants.PARAM_JSON_PATH),
           (String) subResponse.get(Constants.PARAM_UNDERSCORE_REV),
           (String) subResponse.get(Constants.PARAM_MD5));
     } else {
@@ -59,18 +67,27 @@ public class JsonApiService extends BaseService {
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   private void processJsonApi(String id, String url, Map<String, String> httpHeaders,
-      Map<String, String> httpParam, String rev, String oldMd5) {
-    log.info("[{}] url = {}, httpHeaders = {}, httpParam = {}", id, url, httpHeaders, httpParam);
+      Map<String, String> httpParam, String jsonPath, String rev, String oldMd5) {
+    log.info("[{}] url = {}, httpHeaders = {}, httpParam = {}, jsonPath = {}", id, url, httpHeaders,
+        httpParam, jsonPath);
     try {
       ResponseEntity<String> subEntity = jsonRestTemplate.exchange(url, HttpMethod.GET,
           new HttpEntity<Map>(BasicAuthUtil.createHeaders(httpHeaders)), String.class, httpParam);
       if (subEntity.getStatusCode().is2xxSuccessful()) {
-        String respBody = subEntity.getBody();
-        Map<String, Object> resultMap = new ObjectMapper().readValue(respBody, Map.class);
+        String jsonBody = subEntity.getBody();
+        Map<String, Object> resultMap = new ObjectMapper().readValue(jsonBody, Map.class);
+
         ObjectMapper yamlMapper = JsonMapper.builder(new YAMLFactory())
             .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).build();
         String resultText = "<pre>" + yamlMapper.writeValueAsString(resultMap) + "</pre>";
+
+        if (jsonPath != null) {
+          ReadContext readContext = JsonPath.using(jsonPathConfiguration).parse(jsonBody);
+          String title = "<h1>"
+              + BasicAuthUtil.getValueByJsonPath(readContext, jsonPath, String.class, "") + "</h1>";
+          resultText = title + resultText;
+        }
         String newMd5 = DigestUtils.md5Hex(resultText);
         log.info("[{}] newMd5 = {}, oldMd5 = {}", id, newMd5, oldMd5);
         if (!StringUtils.equals(oldMd5, newMd5) || StringUtils
@@ -82,7 +99,8 @@ public class JsonApiService extends BaseService {
               couchdbRestTemplate.exchange(updateJsonApiUrl, HttpMethod.PUT,
                   new HttpEntity<Map>(
                       Map.of(Constants.PARAM_URL, url, Constants.PARAM_HTTP_HEADERS, httpHeaders,
-                          Constants.PARAM_HTTP_PARAM, httpParam, Constants.PARAM_MD5, newMd5),
+                          Constants.PARAM_HTTP_PARAM, httpParam, Constants.PARAM_JSON_PATH,
+                          jsonPath, Constants.PARAM_MD5, newMd5),
                       BasicAuthUtil.createHeaders(couchDbUsername, couchDbPassword)),
                   Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
           if (updateEntity.getStatusCode().is2xxSuccessful()) {

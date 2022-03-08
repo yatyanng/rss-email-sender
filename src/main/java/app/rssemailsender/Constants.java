@@ -33,12 +33,14 @@ public class Constants {
 
   public static final String PARAM_TARGET = "target";
   public static final String PARAM_FORCE_SEND = "forceSend";
+  
   public static final String PARAM_TIMEOUT = "timeout";
   public static final String PARAM_ID = "id";
   public static final String PARAM_URL = "url";
   public static final String PARAM_XPATH = "xpath";
   public static final String PARAM_TEXT = "text";
   public static final String PARAM_UNDERSCORE_REV = "_rev";
+  public static final String PARAM_JSON_PATH = "json_path";
   public static final String PARAM_REV = "rev";
   public static final String PARAM_MD5 = "md5";
   
@@ -51,6 +53,7 @@ public class Constants {
   public static final String BEAN_COUCHDB_REST_TEMPLATE = "couchdbRestTemplate";
   public static final String BEAN_COUCHDB_REST_CLIENT = "couchdbRestClient";
   public static final String BEAN_JAVAMAIL_PROPERTIES = "javaMailProperties";
+  public static final String BEAN_JSON_PATH_CONFIGURATION = "jsonPathConfiguration";
 
   private Constants() {}
 }

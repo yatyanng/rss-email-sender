@@ -7,10 +7,17 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.http.HttpHeaders;
+import com.jayway.jsonpath.ReadContext;
 
 public class BasicAuthUtil {
 
+  public static <T> T getValueByJsonPath(ReadContext readContext, String jsonPath, Class<T> clazz,
+      T defaultValue) {
+    return ObjectUtils.defaultIfNull(readContext.read(jsonPath, clazz), defaultValue);
+  }
+  
   public static SSLSocketFactory socketFactory() {
     TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
       public java.security.cert.X509Certificate[] getAcceptedIssuers() {
