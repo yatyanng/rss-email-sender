@@ -38,7 +38,7 @@ public class JsoupService extends BaseService {
   @SuppressWarnings({"rawtypes", "unchecked"})
   protected void processRow(String id) {
     ResponseEntity<Map> subEntity = couchdbRestTemplate.exchange(getDataURL(), HttpMethod.GET,
-        new HttpEntity<Map>(BasicAuthUtil.createHeaders(couchDbUsername, couchDbPassword)),
+        new HttpEntity<Map>(BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
         Map.class, Map.of(Constants.PARAM_ID, id));
     if (subEntity.getStatusCode().is2xxSuccessful()) {
       Map<String, Object> subResponse = subEntity.getBody();
@@ -51,7 +51,7 @@ public class JsoupService extends BaseService {
           subEntity.getStatusCode().getReasonPhrase()));
     }
   }
-  
+
   @SuppressWarnings("rawtypes")
   private void processJsoup(String id, String url, String xpath, String rev, String oldMd5) {
     log.info("[{}] xpath = {}, rev = {}", id, xpath, rev);
@@ -63,16 +63,16 @@ public class JsoupService extends BaseService {
         String newMd5 = DigestUtils.md5Hex(resultText);
         log.info("[{}] newMd5 = {}, oldMd5 = {}", id, newMd5, oldMd5);
         if (!StringUtils.equals(oldMd5, newMd5) || StringUtils
-            .equalsIgnoreCase(System.getenv(Constants.PARAM_FORCE_SEND), Boolean.TRUE.toString())) {
-          
+            .equalsIgnoreCase(System.getenv(Constants.ENV_FORCE_SEND), Boolean.TRUE.toString())) {
+
           emailService.sendEmail(id, resultText);
-          
+
           ResponseEntity<Map> updateEntity =
               couchdbRestTemplate.exchange(updateJsoupUrl, HttpMethod.PUT,
                   new HttpEntity<Map>(
                       Map.of(Constants.PARAM_URL, url, Constants.PARAM_XPATH, xpath,
                           Constants.PARAM_MD5, newMd5),
-                      BasicAuthUtil.createHeaders(couchDbUsername, couchDbPassword)),
+                      BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
                   Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
           if (updateEntity.getStatusCode().is2xxSuccessful()) {
             log.info("[{}] update MD5 ok", id);

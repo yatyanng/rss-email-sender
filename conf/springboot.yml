@@ -5,6 +5,7 @@ app:
       connection-pool-size: 2
       username: ''
       password: ''
+      save-json-result-url: ''
       read-jsoup-url: ''
       read-xalan-url: ''
       read-json-api-url: ''

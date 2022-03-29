@@ -17,7 +17,7 @@ public class BasicAuthUtil {
       T defaultValue) {
     return ObjectUtils.defaultIfNull(readContext.read(jsonPath, clazz), defaultValue);
   }
-  
+
   public static SSLSocketFactory socketFactory() {
     TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
       public java.security.cert.X509Certificate[] getAcceptedIssuers() {
@@ -26,13 +26,11 @@ public class BasicAuthUtil {
 
       @Override
       public void checkClientTrusted(X509Certificate[] arg0, String arg1)
-          throws CertificateException {
-      }
+          throws CertificateException {}
 
       @Override
       public void checkServerTrusted(X509Certificate[] arg0, String arg1)
-          throws CertificateException {
-      }
+          throws CertificateException {}
     }};
 
     try {
@@ -44,20 +42,20 @@ public class BasicAuthUtil {
       throw new RuntimeException("Failed to create a SSL socket factory", e);
     }
   }
-  
+
   @SuppressWarnings("serial")
-  public static HttpHeaders createHeaders(Map<String,String> httpHeaders) {
+  public static HttpHeaders createHttpHeaders(Map<String, String> httpHeaders) {
     return new HttpHeaders() {
-      { 
+      {
         httpHeaders.entrySet().stream().forEach(entry -> {
           set(entry.getKey(), entry.getValue());
-        }); 
+        });
       }
     };
   }
-  
+
   @SuppressWarnings("serial")
-  public static HttpHeaders createHeaders(String username, String password) {
+  public static HttpHeaders createAuthHeader(String username, String password) {
     return new HttpHeaders() {
       {
         String auth = username + ":" + password;
@@ -65,6 +63,23 @@ public class BasicAuthUtil {
             .encodeBase64(auth.getBytes(java.nio.charset.Charset.forName("US-ASCII")));
         String authHeader = "Basic " + new String(encodedAuth);
         set("Authorization", authHeader);
+      }
+    };
+  }
+
+  @SuppressWarnings("serial")
+  public static HttpHeaders createAuthHeader(String username, String password,
+      Map<String, String> httpHeaders) {
+    return new HttpHeaders() {
+      {
+        String auth = username + ":" + password;
+        byte[] encodedAuth = org.apache.commons.codec.binary.Base64
+            .encodeBase64(auth.getBytes(java.nio.charset.Charset.forName("US-ASCII")));
+        String authHeader = "Basic " + new String(encodedAuth);
+        set("Authorization", authHeader);
+        httpHeaders.entrySet().stream().forEach(entry -> {
+          set(entry.getKey(), entry.getValue());
+        });
       }
     };
   }
