@@ -2,9 +2,10 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>app</groupId>
 	<artifactId>rss-email-sender</artifactId>
-	<version>1.2.0</version>
+	<version>1.3.0</version>
 	<name>rss-email-sender</name>
 	<properties>
+		<buildVersion>snapshot</buildVersion>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<spring.boot.version>2.5.9</spring.boot.version>
 		<jackson.version>2.13.1</jackson.version>
@@ -16,12 +17,30 @@
 		<jsoup.version>1.14.3</jsoup.version>
 		<xalan.version>2.7.2</xalan.version>
 		<json-path.version>2.7.0</json-path.version>
+		<mybatis.version>3.5.9</mybatis.version>
+		<mybatis-spring.version>2.0.7</mybatis-spring.version>
+		<mysql-jdbc.version>8.0.29</mysql-jdbc.version>
 	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 			<version>${spring.boot.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mybatis</groupId>
+			<artifactId>mybatis</artifactId>
+			<version>${mybatis.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mybatis</groupId>
+			<artifactId>mybatis-spring</artifactId>
+			<version>${mybatis-spring.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>${mysql-jdbc.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
@@ -101,6 +120,7 @@
 		</dependency>
 	</dependencies>
 	<build>
+		<finalName>rss-email-sender-${buildVersion}</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

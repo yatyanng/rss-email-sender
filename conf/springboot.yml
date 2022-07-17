@@ -1,22 +1,26 @@
 app:
-   couchdb:
-      connect-timeout: 5
-      read-timeout: 5
-      connection-pool-size: 2
-      username: ''
-      password: ''
-      save-json-result-url: ''
-      read-jsoup-url: ''
-      read-xalan-url: ''
-      read-json-api-url: ''
-      update-jsoup-url: ''
-      update-xalan-url: ''
-      update-json-api-url: ''
-   email:
-      from-address: ''
-      password: ''
-      to-address: ''
+  database:
+    url: ""
+    username: ""
+    password: ""
+  couchdb:
+    connect-timeout: 5
+    read-timeout: 5
+    connection-pool-size: 2
+    username: ''
+    password: ''
+    save-json-result-url: ''
+    read-jsoup-url: ''
+    read-xalan-url: ''
+    read-json-api-url: ''
+    update-jsoup-url: ''
+    update-xalan-url: ''
+    update-json-api-url: ''
+  email:
+    from-address: ''
+    password: ''
+    to-address: ''
 spring:
-   main:
-      web-application-type: none
-      allow-circular-references: true
+  main:
+    web-application-type: none
+    allow-circular-references: true

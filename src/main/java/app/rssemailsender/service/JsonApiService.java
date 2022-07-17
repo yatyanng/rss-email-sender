@@ -120,7 +120,9 @@ public class JsonApiService extends BaseService {
         if (!StringUtils.equals(oldMd5, newMd5) || StringUtils
             .equalsIgnoreCase(System.getenv(Constants.ENV_FORCE_SEND), Boolean.TRUE.toString())) {
 
-          emailService.sendEmail(id, resultText);
+          if (!emailService.sendEmail(id, resultText)) {
+            getErrorSet().add(String.format("processJsonApi error, cannot send email, id = %s", id));
+          }
 
           ResponseEntity<Map> updateEntity =
               couchdbRestTemplate.exchange(updateJsonApiUrl, HttpMethod.PUT,

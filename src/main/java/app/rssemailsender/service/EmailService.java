@@ -1,5 +1,6 @@
 package app.rssemailsender.service;
 
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -9,12 +10,17 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.ibatis.session.SqlSession;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import app.rssemailsender.Constants;
+import app.rssemailsender.mapper.EmailMeterMapper;
+import app.rssemailsender.model.EmailCounter;
 
 @Service
 public class EmailService {
@@ -33,8 +39,12 @@ public class EmailService {
   @Value(Constants.CFG_EMAIL_TO_ADDRESS)
   private String[] toAddresses;
 
-  public void sendEmail(String subject, String content) {
-    try {
+  @Autowired
+  @Qualifier(Constants.BEAN_MYSQL_SESSION_FACTORY)
+  protected SqlSessionFactory mysqlSessionFactory;
+
+  public boolean sendEmail(String subject, String content) {
+    try (SqlSession sqlSession = mysqlSessionFactory.openSession()) {
       log.debug("[sendEmail] subject: {}, content: {}", subject, content);
 
       String emailHost = javaMailProperties.getProperty("mail.smtp.host");
@@ -63,11 +73,22 @@ public class EmailService {
         transport.sendMessage(message, message.getAllRecipients());
         transport.close();
         log.debug("sendEmail to: {}", Arrays.asList(toAddresses));
+
+        EmailMeterMapper emailMeterMapper = sqlSession.getMapper(EmailMeterMapper.class);
+        EmailCounter emailCounter = new EmailCounter();
+        emailCounter.setEmailSentBy(fromAddress);
+        emailCounter.setSubject(subject);
+        emailCounter.setEmailSentTime(
+            new SimpleDateFormat("yyyy-MM-dd HH:mm").format(System.currentTimeMillis()));
+        emailMeterMapper.insert(emailCounter);
+        sqlSession.commit();
+        return true;
       } else {
         log.warn("[sendEmail] missing either from-field, to-field or host address!");
       }
     } catch (Exception e) {
       log.error("sendEmail error!", e);
     }
+    return false;
   }
 }
