@@ -39,6 +39,7 @@ public class XalanService extends BaseService {
   @Autowired
   private EmailService emailService;
 
+  @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
   protected void processRow(String id) {
     ResponseEntity<Map> subEntity = couchdbRestTemplate.exchange(getDataURL(), HttpMethod.GET,
@@ -106,9 +107,11 @@ public class XalanService extends BaseService {
     } catch (Exception e) {
       log.error("[{}] processXalan error!", id, e);
       getErrorSet().add(String.format("processXalan error, id = %s, msg = %s", id, e.getMessage()));
+      publishException(e);
     }
   }
 
+  @Override
   protected String getDataURL() {
     return readXalanUrl;
   }

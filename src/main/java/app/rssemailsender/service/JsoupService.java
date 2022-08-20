@@ -35,6 +35,7 @@ public class JsoupService extends BaseService {
 
   private Set<String> errorSet = new HashSet<>();
 
+  @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
   protected void processRow(String id) {
     ResponseEntity<Map> subEntity = couchdbRestTemplate.exchange(getDataURL(), HttpMethod.GET,
@@ -87,9 +88,11 @@ public class JsoupService extends BaseService {
     } catch (Exception e) {
       log.error("[{}] processJsoup error!", id, e);
       errorSet.add(String.format("processJsoup error, id = %s, msg = %s", id, e.getMessage()));
+      publishException(e);
     }
   }
 
+  @Override
   protected String getDataURL() {
     return readJsoupUrl;
   }

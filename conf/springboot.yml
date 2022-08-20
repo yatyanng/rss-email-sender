@@ -1,4 +1,7 @@
 app:
+  kafka:
+    topic: ""
+    bootstrap-server: ""
   database:
     url: ""
     username: ""

@@ -43,6 +43,9 @@ public class EmailService {
   @Qualifier(Constants.BEAN_MYSQL_SESSION_FACTORY)
   protected SqlSessionFactory mysqlSessionFactory;
 
+  @Autowired
+  protected KafkaPublisher exceptionPublisher;
+
   public boolean sendEmail(String subject, String content) {
     try {
       log.debug("[sendEmail] subject: {}, content: {}", subject, content);
@@ -80,10 +83,11 @@ public class EmailService {
       }
     } catch (Exception e) {
       log.error("sendEmail error!", e);
+      exceptionPublisher.publishException(e);
     }
     return false;
   }
-  
+
   private boolean insertEmailMeter(String subject) {
     try (SqlSession sqlSession = mysqlSessionFactory.openSession()) {
       EmailMeterMapper emailMeterMapper = sqlSession.getMapper(EmailMeterMapper.class);
@@ -97,6 +101,7 @@ public class EmailService {
       return true;
     } catch (Exception e) {
       log.error("insertEmailMeter error!", e);
+      exceptionPublisher.publishException(e);
       return false;
     }
   }

@@ -34,6 +34,9 @@ abstract public class BaseService {
 
   private Set<String> errorSet = new HashSet<>();
 
+  @Autowired
+  protected KafkaPublisher exceptionPublisher;
+
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void run() {
     try {
@@ -65,7 +68,12 @@ abstract public class BaseService {
     } catch (Exception e) {
       log.error("run error!", e);
       errorSet.add(String.format("read all error, error = %s", e.getMessage()));
+      publishException(e);
     }
+  }
+
+  protected void publishException(Exception e) {
+    exceptionPublisher.publishException(e);
   }
 
   public Set<String> getErrorSet() {

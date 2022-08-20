@@ -49,6 +49,7 @@ public class JsonApiService extends BaseService {
   @Qualifier(Constants.BEAN_JSON_PATH_CONFIGURATION)
   protected com.jayway.jsonpath.Configuration jsonPathConfiguration;
 
+  @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
   protected void processRow(String id) {
     ResponseEntity<Map> subEntity = couchdbRestTemplate.exchange(getDataURL(), HttpMethod.GET,
@@ -112,7 +113,7 @@ public class JsonApiService extends BaseService {
         if (jsonPath != null) {
           ReadContext readContext = JsonPath.using(jsonPathConfiguration).parse(jsonBody);
           String title = "<h1>"
-              + BasicAuthUtil.getValueByJsonPath(readContext, jsonPath, String.class, "") + "</h1>";
+              + JsonPathUtil.getValueByJsonPath(readContext, jsonPath, String.class, "") + "</h1>";
           resultText = title + resultText;
         }
         String newMd5 = DigestUtils.md5Hex(resultText);
@@ -121,7 +122,8 @@ public class JsonApiService extends BaseService {
             .equalsIgnoreCase(System.getenv(Constants.ENV_FORCE_SEND), Boolean.TRUE.toString())) {
 
           if (!emailService.sendEmail(id, resultText)) {
-            getErrorSet().add(String.format("processJsonApi error, cannot send email, id = %s", id));
+            getErrorSet()
+                .add(String.format("processJsonApi error, cannot send email, id = %s", id));
           }
 
           ResponseEntity<Map> updateEntity =
@@ -147,10 +149,12 @@ public class JsonApiService extends BaseService {
       log.error("[{}] processJsonApi error!", id, e);
       getErrorSet()
           .add(String.format("processJsonApi error, id = %s, msg = %s", id, e.getMessage()));
+      publishException(e);
     }
     return null;
   }
 
+  @Override
   protected String getDataURL() {
     return readJsonApiUrl;
   }
