@@ -20,7 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import app.rssemailsender.Constants;
 import app.rssemailsender.mapper.EmailMeterMapper;
-import app.rssemailsender.model.EmailCounter;
+import app.rssemailsender.model.EmailMeter;
 
 @Service
 public class EmailService {
@@ -44,7 +44,7 @@ public class EmailService {
   protected SqlSessionFactory mysqlSessionFactory;
 
   public boolean sendEmail(String subject, String content) {
-    try (SqlSession sqlSession = mysqlSessionFactory.openSession()) {
+    try {
       log.debug("[sendEmail] subject: {}, content: {}", subject, content);
 
       String emailHost = javaMailProperties.getProperty("mail.smtp.host");
@@ -74,15 +74,7 @@ public class EmailService {
         transport.close();
         log.debug("sendEmail to: {}", Arrays.asList(toAddresses));
 
-        EmailMeterMapper emailMeterMapper = sqlSession.getMapper(EmailMeterMapper.class);
-        EmailCounter emailCounter = new EmailCounter();
-        emailCounter.setEmailSentBy(fromAddress);
-        emailCounter.setSubject(subject);
-        emailCounter.setEmailSentTime(
-            new SimpleDateFormat("yyyy-MM-dd HH:mm").format(System.currentTimeMillis()));
-        emailMeterMapper.insert(emailCounter);
-        sqlSession.commit();
-        return true;
+        return insertEmailMeter(subject);
       } else {
         log.warn("[sendEmail] missing either from-field, to-field or host address!");
       }
@@ -90,5 +82,22 @@ public class EmailService {
       log.error("sendEmail error!", e);
     }
     return false;
+  }
+  
+  private boolean insertEmailMeter(String subject) {
+    try (SqlSession sqlSession = mysqlSessionFactory.openSession()) {
+      EmailMeterMapper emailMeterMapper = sqlSession.getMapper(EmailMeterMapper.class);
+      EmailMeter emailMeter = new EmailMeter();
+      emailMeter.setEmailSentBy(fromAddress);
+      emailMeter.setSubject(subject);
+      emailMeter.setEmailSentTime(
+          new SimpleDateFormat("yyyy-MM-dd HH:mm").format(System.currentTimeMillis()));
+      emailMeterMapper.insert(emailMeter);
+      sqlSession.commit();
+      return true;
+    } catch (Exception e) {
+      log.error("insertEmailMeter error!", e);
+      return false;
+    }
   }
 }

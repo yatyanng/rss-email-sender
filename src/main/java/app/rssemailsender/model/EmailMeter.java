@@ -1,6 +1,6 @@
 package app.rssemailsender.model;
 
-public class EmailCounter {
+public class EmailMeter {
 
   private String subject;
   private String emailSentBy;
