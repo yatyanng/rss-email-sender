@@ -1,5 +1,6 @@
 package app.rssemailsender;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,23 +48,32 @@ public class Boot {
     log.info("{} {} is started with configDirectory: {}", buildProperties.getArtifact(),
         buildProperties.getVersion(), configDirectory);
     int rc = 0;
+    String mode = System.getenv(Constants.ENV_MODE);
+    String target = System.getenv(Constants.ENV_TARGET);
+    log.debug("mode: {}, target: {}", mode, target);
+    
+    if (StringUtils.equals(Constants.CONST_JSOUP, mode)) {
+      jsoupService.run();
+      if (!jsoupService.getErrorSet().isEmpty()) {
+        log.error("jsoup service error: {}", jsoupService.getErrorSet());
+        rc += Constants.CODE_JSOUP_SERVICE;
+      }
+    }
+    if (StringUtils.equals(Constants.CONST_XALAN, mode)) {
+      xalanService.run();
+      if (!xalanService.getErrorSet().isEmpty()) {
+        log.error("xalan service error: {}", xalanService.getErrorSet());
+        rc += Constants.CODE_XALAN_SERVICE;
+      }
+    }
+    if (StringUtils.equals(Constants.CONST_JSON_API, mode)) {
+      jsonApiService.run();
+      if (!jsonApiService.getErrorSet().isEmpty()) {
+        log.error("jsonApi service error: {}", jsonApiService.getErrorSet());
+        rc += Constants.CODE_JSON_API_SERVICE;
+      }
+    }
 
-    jsoupService.run();
-    xalanService.run();
-    jsonApiService.run();
-
-    if (!jsoupService.getErrorSet().isEmpty()) {
-      log.error("jsoup service error: {}", jsoupService.getErrorSet());
-      rc += Constants.CODE_JSOUP_SERVICE;
-    }
-    if (!xalanService.getErrorSet().isEmpty()) {
-      log.error("xalan service error: {}", xalanService.getErrorSet());
-      rc += Constants.CODE_XALAN_SERVICE;
-    }
-    if (!jsonApiService.getErrorSet().isEmpty()) {
-      log.error("jsonApi service error: {}", jsonApiService.getErrorSet());
-      rc += Constants.CODE_JSON_API_SERVICE;
-    }
     log.info("{} {} has ended, rc={}", buildProperties.getArtifact(), buildProperties.getVersion(),
         rc);
     return rc;

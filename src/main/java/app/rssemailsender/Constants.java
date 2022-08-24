@@ -42,10 +42,16 @@ public class Constants {
   public static final String UNDERSCORE = "_";
   public static final String CONTENT_TYPE = "Content-Type";
 
+  public static final String ENV_MODE = "mode";
   public static final String ENV_TARGET = "target";
   public static final String ENV_FORCE_SEND = "forceSend";
 
   public static final String BEAN_MYSQL_SESSION_FACTORY = "mysqlSessionFactory";
+  
+  public static final String CONST_JSOUP = "jsoup";
+  public static final String CONST_XALAN = "xalan";
+  public static final String CONST_JSON_API = "json-api";
+  
   public static final String CONST_MYBATIS_MYSQL_CONFIG = "mybatis-mysql-config.xml";
   public static final String CONST_APP_NAME = "email-sender";
 
