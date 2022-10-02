@@ -3,6 +3,8 @@ package app.rssemailsender;
 public class Constants {
   public static final String CFG_APP_KAFKA_BOOTSTRAP_SERVER = "${app.kafka.bootstrap-server}";
   public static final String CFG_APP_KAFKA_TOPIC = "${app.kafka.topic}";
+  public static final String CFG_APP_KAFKA_CONSUMER_POLL_TIMEOUT =
+      "${app.kafka.consumer-poll-timeout}";
 
   public static final String CFG_APP_DATABASE_URL = "${app.database.url}";
   public static final String CFG_APP_DATABASE_USERNAME = "${app.database.username}";
@@ -47,10 +49,11 @@ public class Constants {
   public static final String ENV_FORCE_SEND = "forceSend";
 
   public static final String BEAN_MYSQL_SESSION_FACTORY = "mysqlSessionFactory";
-  
+
   public static final String CONST_JSOUP = "jsoup";
   public static final String CONST_XALAN = "xalan";
   public static final String CONST_JSON_API = "json-api";
+  public static final String CONST_KAFKA = "kafka";
   
   public static final String CONST_MYBATIS_MYSQL_CONFIG = "mybatis-mysql-config.xml";
   public static final String CONST_APP_NAME = "email-sender";

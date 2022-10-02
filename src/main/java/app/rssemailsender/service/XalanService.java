@@ -107,7 +107,6 @@ public class XalanService extends BaseService {
     } catch (Exception e) {
       log.error("[{}] processXalan error!", id, e);
       getErrorSet().add(String.format("processXalan error, id = %s, msg = %s", id, e.getMessage()));
-      publishException(e);
     }
   }
 

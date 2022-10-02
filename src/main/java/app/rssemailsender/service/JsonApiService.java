@@ -149,7 +149,6 @@ public class JsonApiService extends BaseService {
       log.error("[{}] processJsonApi error!", id, e);
       getErrorSet()
           .add(String.format("processJsonApi error, id = %s, msg = %s", id, e.getMessage()));
-      publishException(e);
     }
     return null;
   }

@@ -88,7 +88,6 @@ public class JsoupService extends BaseService {
     } catch (Exception e) {
       log.error("[{}] processJsoup error!", id, e);
       errorSet.add(String.format("processJsoup error, id = %s, msg = %s", id, e.getMessage()));
-      publishException(e);
     }
   }
 

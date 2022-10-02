@@ -1,9 +1,14 @@
 package app.rssemailsender;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.info.BuildProperties;
@@ -29,6 +34,12 @@ public class Boot {
   @Autowired
   private JsonApiService jsonApiService;
 
+  @Autowired
+  private Consumer<String, String> kafkaConsumer;
+
+  @Value(Constants.CFG_APP_KAFKA_CONSUMER_POLL_TIMEOUT)
+  private Long pollTimeout;
+
   public static void main(String[] args) throws Exception {
     String configDirectory = "conf";
     if (args.length > 0) {
@@ -52,6 +63,21 @@ public class Boot {
     String target = System.getenv(Constants.ENV_TARGET);
     log.debug("mode: {}, target: {}", mode, target);
     
+    if (StringUtils.equals(Constants.CONST_KAFKA, mode)) {
+      while (!Thread.currentThread().isInterrupted()) {
+        final ConsumerRecords<String, String> consumerRecords =
+            kafkaConsumer.poll(Duration.of(pollTimeout, ChronoUnit.SECONDS));
+        log.info("Consumer Record count={}", consumerRecords.count());
+    
+        if (consumerRecords.count() > 0) {
+          consumerRecords.forEach(record -> {
+            log.info("Consumer Record (\n\tkey={},\n\tvalue={},\n\tpartition={},\n\toffset={}\n)",
+                record.key(), record.value(), record.partition(), record.offset());
+          });
+          kafkaConsumer.commitAsync();
+        }
+      }
+    }
     if (StringUtils.equals(Constants.CONST_JSOUP, mode)) {
       jsoupService.run();
       if (!jsoupService.getErrorSet().isEmpty()) {
@@ -73,7 +99,6 @@ public class Boot {
         rc += Constants.CODE_JSON_API_SERVICE;
       }
     }
-
     log.info("{} {} has ended, rc={}", buildProperties.getArtifact(), buildProperties.getVersion(),
         rc);
     return rc;

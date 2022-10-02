@@ -43,9 +43,6 @@ public class EmailService {
   @Qualifier(Constants.BEAN_MYSQL_SESSION_FACTORY)
   protected SqlSessionFactory mysqlSessionFactory;
 
-  @Autowired
-  protected KafkaPublisher exceptionPublisher;
-
   public boolean sendEmail(String subject, String content) {
     try {
       log.debug("[sendEmail] subject: {}, content: {}", subject, content);
@@ -83,7 +80,6 @@ public class EmailService {
       }
     } catch (Exception e) {
       log.error("sendEmail error!", e);
-      exceptionPublisher.publishException(e);
     }
     return false;
   }
@@ -101,7 +97,6 @@ public class EmailService {
       return true;
     } catch (Exception e) {
       log.error("insertEmailMeter error!", e);
-      exceptionPublisher.publishException(e);
       return false;
     }
   }

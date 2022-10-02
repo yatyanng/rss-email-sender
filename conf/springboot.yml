@@ -2,6 +2,7 @@ app:
   kafka:
     topic: ""
     bootstrap-server: ""
+    consumer-poll-timeout: 1
   database:
     url: ""
     username: ""
