@@ -1,14 +1,16 @@
 package app.rssemailsender;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.info.BuildProperties;
@@ -34,12 +36,6 @@ public class Boot {
   @Autowired
   private JsonApiService jsonApiService;
 
-  @Autowired
-  private Consumer<String, String> kafkaConsumer;
-
-  @Value(Constants.CFG_APP_KAFKA_CONSUMER_POLL_TIMEOUT)
-  private Long pollTimeout;
-
   public static void main(String[] args) throws Exception {
     String configDirectory = "conf";
     if (args.length > 0) {
@@ -58,50 +54,36 @@ public class Boot {
   public int run(String configDirectory) throws Exception {
     log.info("{} {} is started with configDirectory: {}", buildProperties.getArtifact(),
         buildProperties.getVersion(), configDirectory);
-    int rc = 0;
+    MutableInt rc = new MutableInt(0);
     String mode = System.getenv(Constants.ENV_MODE);
     String target = System.getenv(Constants.ENV_TARGET);
     log.debug("mode: {}, target: {}", mode, target);
-    
-    if (StringUtils.equals(Constants.CONST_KAFKA, mode)) {
-      while (!Thread.currentThread().isInterrupted()) {
-        final ConsumerRecords<String, String> consumerRecords =
-            kafkaConsumer.poll(Duration.of(pollTimeout, ChronoUnit.SECONDS));
-        log.info("Consumer Record count={}", consumerRecords.count());
-    
-        if (consumerRecords.count() > 0) {
-          consumerRecords.forEach(record -> {
-            log.info("Consumer Record (\n\tkey={},\n\tvalue={},\n\tpartition={},\n\toffset={}\n)",
-                record.key(), record.value(), record.partition(), record.offset());
-          });
-          kafkaConsumer.commitAsync();
+
+    ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+
+    Pair<Integer, Callable<Set<String>>> servicePair = switch (mode) {
+      case Constants.CONST_JSOUP -> Pair.of(Constants.CODE_JSOUP_SERVICE, jsoupService);
+      case Constants.CONST_XALAN -> Pair.of(Constants.CODE_XALAN_SERVICE, xalanService);
+      case Constants.CONST_JSON_API -> Pair.of(Constants.CODE_JSON_API_SERVICE, jsonApiService);
+      default -> throw new IllegalArgumentException("Unexpected value: " + mode);
+    };
+
+    List<Future<Set<String>>> futures = executor.invokeAll(List.of(servicePair.getRight()));
+    futures.forEach(t -> {
+      try {
+        Set<String> errorSet = t.get();
+        if (!errorSet.isEmpty()) {
+          log.error("call service error: {}", errorSet);
+          rc.add(servicePair.getLeft());
         }
+      } catch (Exception e) {
+        log.error("call service error!", e);
       }
-    }
-    if (StringUtils.equals(Constants.CONST_JSOUP, mode)) {
-      jsoupService.run();
-      if (!jsoupService.getErrorSet().isEmpty()) {
-        log.error("jsoup service error: {}", jsoupService.getErrorSet());
-        rc += Constants.CODE_JSOUP_SERVICE;
-      }
-    }
-    if (StringUtils.equals(Constants.CONST_XALAN, mode)) {
-      xalanService.run();
-      if (!xalanService.getErrorSet().isEmpty()) {
-        log.error("xalan service error: {}", xalanService.getErrorSet());
-        rc += Constants.CODE_XALAN_SERVICE;
-      }
-    }
-    if (StringUtils.equals(Constants.CONST_JSON_API, mode)) {
-      jsonApiService.run();
-      if (!jsonApiService.getErrorSet().isEmpty()) {
-        log.error("jsonApi service error: {}", jsonApiService.getErrorSet());
-        rc += Constants.CODE_JSON_API_SERVICE;
-      }
-    }
+    });
+
     log.info("{} {} has ended, rc={}", buildProperties.getArtifact(), buildProperties.getVersion(),
         rc);
-    return rc;
+    return rc.intValue();
   }
 
 }

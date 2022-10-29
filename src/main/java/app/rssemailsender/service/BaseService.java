@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import app.rssemailsender.Constants;
 
-abstract public class BaseService {
+abstract public class BaseService implements Callable<Set<String>> {
 
   private static final Logger log = LoggerFactory.getLogger(BaseService.class);
 
@@ -34,8 +35,12 @@ abstract public class BaseService {
 
   private Set<String> errorSet = new HashSet<>();
 
+  protected Set<String> getErrorSet() {
+    return errorSet;
+  }
+  
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public void run() {
+  public Set<String> call() {
     try {
       ResponseEntity<Map> responseEntity =
           couchdbRestTemplate.exchange(getDataURL(), HttpMethod.GET,
@@ -66,9 +71,6 @@ abstract public class BaseService {
       log.error("run error!", e);
       errorSet.add(String.format("read all error, error = %s", e.getMessage()));
     }
-  }
-
-  public Set<String> getErrorSet() {
     return errorSet;
   }
 }

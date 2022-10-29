@@ -1,11 +1,6 @@
 package app.rssemailsender;
 
 public class Constants {
-  public static final String CFG_APP_KAFKA_BOOTSTRAP_SERVER = "${app.kafka.bootstrap-server}";
-  public static final String CFG_APP_KAFKA_TOPIC = "${app.kafka.topic}";
-  public static final String CFG_APP_KAFKA_CONSUMER_POLL_TIMEOUT =
-      "${app.kafka.consumer-poll-timeout}";
-
   public static final String CFG_APP_DATABASE_URL = "${app.database.url}";
   public static final String CFG_APP_DATABASE_USERNAME = "${app.database.username}";
   public static final String CFG_APP_DATABASE_PASSWORD = "${app.database.password}";
