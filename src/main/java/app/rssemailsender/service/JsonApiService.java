@@ -3,6 +3,7 @@ package app.rssemailsender.service;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Future;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
@@ -108,34 +109,33 @@ public class JsonApiService extends BaseService {
         ObjectMapper yamlMapper = JsonMapper.builder(new YAMLFactory())
             .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).build();
-        String resultText = "<pre>" + yamlMapper.writeValueAsString(resultMap) + "</pre>";
+        StringBuilder resultText =
+            new StringBuilder("<pre>" + yamlMapper.writeValueAsString(resultMap) + "</pre>");
 
         if (jsonPath != null) {
           ReadContext readContext = JsonPath.using(jsonPathConfiguration).parse(jsonBody);
           String title = "<h1>"
               + JsonPathUtil.getValueByJsonPath(readContext, jsonPath, String.class, "") + "</h1>";
-          resultText = title + resultText;
+          resultText.insert(0, title);
         }
-        String newMd5 = DigestUtils.md5Hex(resultText);
+        String newMd5 = DigestUtils.md5Hex(resultText.toString());
         log.info("[{}] newMd5 = {}, oldMd5 = {}", id, newMd5, oldMd5);
         if (!StringUtils.equals(oldMd5, newMd5) || StringUtils
             .equalsIgnoreCase(System.getenv(Constants.ENV_FORCE_SEND), Boolean.TRUE.toString())) {
 
-          if (!emailService.sendEmail(id, resultText)) {
-            getErrorSet()
-                .add(String.format("processJsonApi error, cannot send email, id = %s", id));
-          }
+          try (var scope = new jdk.incubator.concurrent.StructuredTaskScope.ShutdownOnFailure()) {
+            Future<Boolean> updateMd5 =
+                scope.fork(() -> updateMd5(id, url, httpHeaders, httpParam, jsonPath, rev, newMd5));
+            Future<Boolean> sendEmail = scope.fork(() -> sendEmail(id, resultText.toString()));
 
-          ResponseEntity<Map> updateEntity =
-              couchdbRestTemplate.exchange(updateJsonApiUrl, HttpMethod.PUT,
-                  new HttpEntity<Map>(
-                      Map.of(Constants.PARAM_URL, url, Constants.PARAM_HTTP_HEADERS, httpHeaders,
-                          Constants.PARAM_HTTP_PARAM, httpParam, Constants.PARAM_JSON_PATH,
-                          jsonPath, Constants.PARAM_MD5, newMd5),
-                      BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
-                  Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
-          if (updateEntity.getStatusCode().is2xxSuccessful()) {
-            log.info("[{}] update MD5 ok", id);
+            scope.join();
+            scope.throwIfFailed();
+
+            boolean updateMd5Result = updateMd5.resultNow();
+            boolean sendEmailResult = sendEmail.resultNow();
+
+            log.info("[{}] updateMd5Result: {}, sendEmailResult: {}", id, updateMd5Result,
+                sendEmailResult);
           }
         } else {
           log.info("[{}] md5 pair are same, email will be skipped", id);
@@ -151,6 +151,32 @@ public class JsonApiService extends BaseService {
           .add(String.format("processJsonApi error, id = %s, msg = %s", id, e.getMessage()));
     }
     return null;
+  }
+
+  @SuppressWarnings("rawtypes")
+  private boolean updateMd5(String id, String url, Map<String, String> httpHeaders,
+      Map<String, String> httpParam, String jsonPath, String rev, String newMd5) {
+    ResponseEntity<Map> updateEntity =
+        couchdbRestTemplate.exchange(updateJsonApiUrl, HttpMethod.PUT,
+            new HttpEntity<Map>(
+                Map.of(Constants.PARAM_URL, url, Constants.PARAM_HTTP_HEADERS, httpHeaders,
+                    Constants.PARAM_HTTP_PARAM, httpParam, Constants.PARAM_JSON_PATH, jsonPath,
+                    Constants.PARAM_MD5, newMd5),
+                BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
+            Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
+    if (updateEntity.getStatusCode().is2xxSuccessful()) {
+      log.info("[{}] update MD5 ok", id);
+      return true;
+    }
+    return false;
+  }
+
+  private boolean sendEmail(String id, String resultText) {
+    if (!emailService.sendEmail(id, resultText)) {
+      getErrorSet().add(String.format("processJsonApi error, cannot send email, id = %s", id));
+      return false;
+    }
+    return true;
   }
 
   @Override

@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.Future;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
@@ -57,7 +58,6 @@ public class XalanService extends BaseService {
     }
   }
 
-  @SuppressWarnings("rawtypes")
   private void processXalan(String id, String xslUrl, String xmlUrl, String rev, String oldMd5) {
     log.info("[{}] xslUrl = {}, xmlUrl = {}", id, xslUrl, xmlUrl);
     try {
@@ -87,19 +87,18 @@ public class XalanService extends BaseService {
       if (!StringUtils.equals(oldMd5, newMd5) || StringUtils
           .equalsIgnoreCase(System.getenv(Constants.ENV_FORCE_SEND), Boolean.TRUE.toString())) {
 
-        if (!emailService.sendEmail(id, resultText)) {
-          getErrorSet().add(String.format("processXalan error, cannot send email, id = %s", id));
-        }
+        try (var scope = new jdk.incubator.concurrent.StructuredTaskScope.ShutdownOnFailure()) {
+          Future<Boolean> updateMd5 = scope.fork(() -> updateMd5(id, xslUrl, xmlUrl, rev, newMd5));
+          Future<Boolean> sendEmail = scope.fork(() -> sendEmail(id, resultText.toString()));
 
-        ResponseEntity<Map> updateEntity =
-            couchdbRestTemplate.exchange(updateXalanUrl, HttpMethod.PUT,
-                new HttpEntity<Map>(
-                    Map.of(Constants.PARAM_XML_URL, xmlUrl, Constants.PARAM_XSL_URL, xslUrl,
-                        Constants.PARAM_MD5, newMd5),
-                    BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
-                Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
-        if (updateEntity.getStatusCode().is2xxSuccessful()) {
-          log.info("[{}] update MD5 ok", id);
+          scope.join();
+          scope.throwIfFailed();
+
+          boolean updateMd5Result = updateMd5.resultNow();
+          boolean sendEmailResult = sendEmail.resultNow();
+
+          log.info("[{}] updateMd5Result: {}, sendEmailResult: {}", id, updateMd5Result,
+              sendEmailResult);
         }
       } else {
         log.info("[{}] md5 pair are same, email will be skipped", id);
@@ -108,6 +107,29 @@ public class XalanService extends BaseService {
       log.error("[{}] processXalan error!", id, e);
       getErrorSet().add(String.format("processXalan error, id = %s, msg = %s", id, e.getMessage()));
     }
+  }
+
+  @SuppressWarnings("rawtypes")
+  private boolean updateMd5(String id, String xslUrl, String xmlUrl, String rev, String newMd5) {
+    ResponseEntity<Map> updateEntity = couchdbRestTemplate.exchange(updateXalanUrl, HttpMethod.PUT,
+        new HttpEntity<Map>(
+            Map.of(Constants.PARAM_XML_URL, xmlUrl, Constants.PARAM_XSL_URL, xslUrl,
+                Constants.PARAM_MD5, newMd5),
+            BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
+        Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
+    if (updateEntity.getStatusCode().is2xxSuccessful()) {
+      log.info("[{}] update MD5 ok", id);
+      return true;
+    }
+    return false;
+  }
+
+  private boolean sendEmail(String id, String resultText) {
+    if (!emailService.sendEmail(id, resultText)) {
+      getErrorSet().add(String.format("processXalan error, cannot send email, id = %s", id));
+      return false;
+    }
+    return true;
   }
 
   @Override

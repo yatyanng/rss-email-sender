@@ -49,7 +49,7 @@ public class Constants {
   public static final String CONST_XALAN = "xalan";
   public static final String CONST_JSON_API = "json-api";
   public static final String CONST_KAFKA = "kafka";
-  
+
   public static final String CONST_MYBATIS_MYSQL_CONFIG = "mybatis-mysql-config.xml";
   public static final String CONST_APP_NAME = "email-sender";
 

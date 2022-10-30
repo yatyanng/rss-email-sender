@@ -3,6 +3,7 @@ package app.rssemailsender.service;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Future;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
@@ -53,7 +54,6 @@ public class JsoupService extends BaseService {
     }
   }
 
-  @SuppressWarnings("rawtypes")
   private void processJsoup(String id, String url, String xpath, String rev, String oldMd5) {
     log.info("[{}] xpath = {}, rev = {}", id, xpath, rev);
     try {
@@ -66,19 +66,18 @@ public class JsoupService extends BaseService {
         if (!StringUtils.equals(oldMd5, newMd5) || StringUtils
             .equalsIgnoreCase(System.getenv(Constants.ENV_FORCE_SEND), Boolean.TRUE.toString())) {
 
-          if (!emailService.sendEmail(id, resultText)) {
-            getErrorSet().add(String.format("processJsoup error, cannot send email, id = %s", id));
-          }
+          try (var scope = new jdk.incubator.concurrent.StructuredTaskScope.ShutdownOnFailure()) {
+            Future<Boolean> updateMd5 = scope.fork(() -> updateMd5(id, url, xpath, rev, newMd5));
+            Future<Boolean> sendEmail = scope.fork(() -> sendEmail(id, resultText.toString()));
 
-          ResponseEntity<Map> updateEntity =
-              couchdbRestTemplate.exchange(updateJsoupUrl, HttpMethod.PUT,
-                  new HttpEntity<Map>(
-                      Map.of(Constants.PARAM_URL, url, Constants.PARAM_XPATH, xpath,
-                          Constants.PARAM_MD5, newMd5),
-                      BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
-                  Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
-          if (updateEntity.getStatusCode().is2xxSuccessful()) {
-            log.info("[{}] update MD5 ok", id);
+            scope.join();
+            scope.throwIfFailed();
+
+            boolean updateMd5Result = updateMd5.resultNow();
+            boolean sendEmailResult = sendEmail.resultNow();
+
+            log.info("[{}] updateMd5Result: {}, sendEmailResult: {}", id, updateMd5Result,
+                sendEmailResult);
           }
         } else {
           log.info("[{}] md5 pair are same, email will be skipped", id);
@@ -89,6 +88,28 @@ public class JsoupService extends BaseService {
       log.error("[{}] processJsoup error!", id, e);
       errorSet.add(String.format("processJsoup error, id = %s, msg = %s", id, e.getMessage()));
     }
+  }
+
+  @SuppressWarnings("rawtypes")
+  private boolean updateMd5(String id, String url, String xpath, String rev, String newMd5) {
+    ResponseEntity<Map> updateEntity = couchdbRestTemplate.exchange(updateJsoupUrl, HttpMethod.PUT,
+        new HttpEntity<Map>(Map.of(Constants.PARAM_URL, url, Constants.PARAM_XPATH, xpath,
+            Constants.PARAM_MD5, newMd5),
+            BasicAuthUtil.createAuthHeader(couchDbUsername, couchDbPassword)),
+        Map.class, Map.of(Constants.PARAM_ID, id, Constants.PARAM_REV, rev));
+    if (updateEntity.getStatusCode().is2xxSuccessful()) {
+      log.info("[{}] update MD5 ok", id);
+      return true;
+    }
+    return false;
+  }
+
+  private boolean sendEmail(String id, String resultText) {
+    if (!emailService.sendEmail(id, resultText)) {
+      getErrorSet().add(String.format("processJsoup error, cannot send email, id = %s", id));
+      return false;
+    }
+    return true;
   }
 
   @Override
